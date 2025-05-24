@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Fake News Detector",
+  "version": "1.0",
+  "description": "Analizuje strony w poszukiwaniu fake newsów w czasie rzeczywistym",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "http://*/*",
+    "https://*/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  }
+}
