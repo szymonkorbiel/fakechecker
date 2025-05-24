@@ -3,16 +3,13 @@
   "name": "Fake News Detector",
   "version": "1.0",
   "description": "Analizuje strony w poszukiwaniu fake newsów w czasie rzeczywistym",
-  "permissions": [
-    "activeTab",
-    "storage",
-    "http://*/*",
-    "https://*/*"
-  ],
+  "permissions": ["activeTab", "storage", "scripting", "tabs"],
+  "host_permissions": ["<all_urls>", "https://api-inference.huggingface.co/*"],
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js"]
+      "js": ["content.js"],
+      "run_at": "document_idle"
     }
   ],
   "background": {

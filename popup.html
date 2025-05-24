@@ -1,16 +1,27 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <title>Fake News Detector</title>
-  <style>
-    body { width: 300px; padding: 10px; font-family: Arial; }
-    button { padding: 10px; width: 100%; }
-  </style>
-</head>
-<body>
-  <h3>Fake News Detector</h3>
-  <button id="scan">Skanuj stronę</button>
-  <p id="result">Wynik: Brak analizy</p>
-  <script src="popup.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Fake News Detector</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 10px;
+      }
+      button {
+        padding: 8px 12px;
+        margin-top: 10px;
+      }
+      #result {
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>Fake News Detector</h3>
+    <button id="scanButton">Skanuj stronę</button>
+    <p id="result">Kliknij przycisk, aby rozpocząć skanowanie</p>
+
+    <script src="popup.js"></script>
+  </body>
 </html>

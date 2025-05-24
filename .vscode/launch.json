@@ -5,9 +5,13 @@
       "type": "chrome",
       "request": "launch",
       "name": "Launch Chrome with Extension",
-      "url": "http://localhost:3000",
+      "url": "https://www.example.com",
       "webRoot": "${workspaceFolder}",
-      "runtimeArgs": ["--load-extension=${workspaceFolder}"]
+      "runtimeArgs": [
+        "--load-extension=${workspaceFolder}",
+        "--disable-web-security"
+      ],
+      "sourceMaps": true
     }
   ]
 }

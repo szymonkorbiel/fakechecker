@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Test Fake News Analyzer (Hugging Face)</title>
+  </head>
+  <body>
+    <h2>Test fake newsów z użyciem API Hugging Face</h2>
+    <pre id="output">Uruchamianie testu...</pre>
+
+    <script>
+      const fakeNewsSamples = [
+        {
+          text: "Premier Donald Tusk ogłasza mobilizację 200 000 mężczyzn od 1 lipca.",
+          expectedFake: false,
+        },
+        {
+          text: "Najnowsze badania wykazały, że picie dużych ilości kawy codziennie powoduje natychmiastowe poważne uszkodzenia mózgu. Eksperci ostrzegają, że nawet jedna filiżanka dziennie zwiększa ryzyko chorób neurodegeneracyjnych o 90%.",
+          expectedFake: true,
+        },
+        {
+          text: "Rząd Polski podpisał tajne porozumienie z obcą cywilizacją, która rzekomo odwiedziła Ziemię. Dokumenty wyciekły do internetu, wskazując, że obcy będą mieli dostęp do wszystkich polskich baz wojskowych.",
+          expectedFake: true,
+        },
+        {
+          text: "Nowa szczepionka na COVID-19 zawiera chip, który pozwala rządowi śledzić każdy ruch zaszczepionych obywateli. Informacje te potwierdził anonimowy informator z Ministerstwa Zdrowia.",
+          expectedFake: true,
+        },
+        {
+          text: "Badania dowiodły, że spożywanie popularnej marki napoju energetycznego powoduje nagłe mutacje genetyczne u 40% konsumentów, prowadząc do poważnych zaburzeń zdrowotnych.",
+          expectedFake: true,
+        },
+        {
+          text: "Prezydent USA odwiedził Polskę po inwazji Rosji na Ukrainę",
+          expectedFake: false,
+        },
+      ];
+
+      const apiKey = "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"; // <-- Wstaw swój klucz HF tutaj
+      const endpoint =
+        "https://api-inference.huggingface.co/models/jy46604790/Fake-News-Bert-Detect";
+
+      const outputEl = document.getElementById("output");
+
+      async function analyzeText(text) {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ inputs: text }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (!Array.isArray(data) || data.length === 0) {
+          return { score: 0, label: "NIEZNANE" };
+        }
+
+        const fakeLabel = data[0].find((d) => d.label === "LABEL_0");
+        const score = fakeLabel ? Math.round(fakeLabel.score * 100) : 0;
+
+        let label;
+        if (score >= 70) label = "FAKE";
+        else if (score >= 30) label = "NIEPEWNE";
+        else label = "OK";
+
+        return { score, label };
+      }
+
+      async function runTests() {
+        const results = [];
+
+        for (const sample of fakeNewsSamples) {
+          try {
+            const result = await analyzeText(sample.text);
+
+            const expectedLabel = sample.expectedFake ? "FAKE" : "OK";
+
+            // PASSED jeżeli zgodność albo AI niepewne
+            const passed =
+              result.label === expectedLabel || result.label === "NIEPEWNE";
+
+            results.push({ ...sample, ...result, expectedLabel, passed });
+          } catch (e) {
+            results.push({
+              ...sample,
+              score: 0,
+              label: "BŁĄD",
+              expectedLabel: sample.expectedFake ? "FAKE" : "OK",
+              passed: false,
+              error: e.message,
+            });
+          }
+        }
+
+        const report = results
+          .map((r, i) => {
+            return `Test ${i + 1}:
+Tekst: ${r.text}
+Skala: ${r.score}%
+AI: ${r.label}
+Oczekiwano: ${r.expectedLabel}
+${r.error ? "❌ Błąd: " + r.error : r.passed ? "✔️ ✅ PASSED" : "❌ FAILED"}
+`;
+          })
+          .join("\n");
+
+        outputEl.textContent = report;
+      }
+
+      runTests().catch((e) => {
+        outputEl.textContent = "Błąd testowania: " + e.message;
+      });
+    </script>
+  </body>
+</html>
