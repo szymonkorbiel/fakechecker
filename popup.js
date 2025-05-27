@@ -1,29 +1,61 @@
-const scanButton = document.getElementById("scanButton");
-const resultElement = document.getElementById("result");
+document.addEventListener("DOMContentLoaded", () => {
+  const scanButton = document.getElementById("scanButton");
+  const resultElement = document.getElementById("result");
 
-scanButton.addEventListener("click", () => {
-  console.log("popup.js: Kliknięto przycisk skanowania");
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (chrome.runtime.lastError) {
-      resultElement.textContent =
-        "Błąd: Nie można skanować strony (tabs.query)";
-      return;
-    }
-    if (!tabs || tabs.length === 0) {
-      resultElement.textContent = "Błąd: Brak aktywnych kart";
-      return;
-    }
-    chrome.tabs.sendMessage(tabs[0].id, { action: "scan" }, (response) => {
-      if (chrome.runtime.lastError) {
-        resultElement.textContent = "Błąd: Nie można połączyć się z content.js";
+  if (!scanButton || !resultElement) {
+    console.error("Brakuje elementów #scanButton lub #result w DOM.");
+    return;
+  }
+
+  scanButton.addEventListener("click", async () => {
+    chrome.tabs.captureVisibleTab(null, { format: "png" }, async (dataUrl) => {
+      if (!dataUrl) {
+        showError("Błąd robienia screena");
         return;
       }
-      if (!response) {
-        resultElement.textContent = "Brak odpowiedzi od content.js";
-        return;
+
+      try {
+        const formData = new FormData();
+        formData.append("base64Image", dataUrl);
+        formData.append("language", "eng");
+        formData.append("isOverlayRequired", "false");
+
+        const response = await fetch("https://api.ocr.space/parse/image", {
+          method: "POST",
+          headers: {
+            apikey: "helloworld", // ← darmowy testowy klucz OCR.Space
+          },
+          body: formData,
+        });
+
+        const result = await response.json();
+        const text = result?.ParsedResults?.[0]?.ParsedText || "";
+
+        if (!text.trim()) {
+          showError("Nie znaleziono tekstu");
+          return;
+        }
+
+        chrome.runtime.sendMessage(
+          { action: "analyzeText", text },
+          (response) => {
+            if (!response) {
+              showError("Błąd w analizie");
+              return;
+            }
+
+            const { score, verdict } = response;
+            resultElement.innerText = `🧠 Wynik: ${verdict} (${score}%)`;
+          }
+        );
+      } catch (err) {
+        console.error("❌ Błąd OCR:", err);
+        showError("OCR error");
       }
-      resultElement.textContent =
-        "Skanowanie zakończone! Sprawdź stronę pod kątem oznaczeń.";
     });
   });
+
+  function showError(msg) {
+    resultElement.innerText = "❌ " + msg;
+  }
 });

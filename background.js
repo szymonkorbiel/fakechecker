@@ -1,101 +1,83 @@
+console.log("🧠 Service worker startuje!");
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === "analyze") {
-    const HF_API_TOKEN = "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";
-    const model = "jy46604790/Fake-News-Bert-Detect";
-    const endpoint = `https://api-inference.huggingface.co/models/${model}`;
-
-    const inputText = typeof request.text === "string" ? request.text : "";
-    if (!inputText.trim()) {
-      console.error("Brak treści do analizy");
-      sendResponse({ score: 0, verdict: "INVALID INPUT" });
-      return;
-    }
-
-    fetch(endpoint, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${HF_API_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        inputs: "twój tekst tutaj",
-      }),
-    })
-      .then(async (res) => {
-        const text = await res.text();
-        try {
-          const json = JSON.parse(text);
-
-          if (!res.ok || json.error) {
-            throw new Error(json.error || `${res.status}: ${res.statusText}`);
-          }
-
-          // 🔍 json = [[{label: 'LABEL_1', score: ...}, {label: 'LABEL_0', score: ...}]]
-          const predictions = Array.isArray(json[0]) ? json[0] : json;
-
-          const fakeObj = predictions.find((obj) => obj.label === "LABEL_0");
-          const fakeScore = fakeObj ? fakeObj.score : 0;
-
-          let verdict = "REAL";
-          if (fakeScore >= 0.9) verdict = "FAKE";
-          else if (fakeScore >= 0.6) verdict = "POSSIBLE FAKE";
-
-          sendResponse({ score: Math.round(fakeScore * 100), verdict });
-        } catch (parseError) {
-          console.error(
-            "❌ Błąd parsowania JSON:",
-            parseError,
-            "\n📥 Surowy tekst:",
-            text
-          );
-          sendResponse({ score: 0, verdict: "API PARSE ERROR" });
-        }
-      })
-
-      .catch((err) => {
-        console.error("Błąd HF API:", err);
-        sendResponse({ score: 0, verdict: "API ERROR" });
-      });
-
+  if (request.action === "analyzeText") {
+    console.log("🧠 Analiza tekstu:", request.text);
+    analyzeText(request.text, sendResponse);
     return true;
   }
 });
-async function debugHFTest(text) {
+
+// 🔍 Wysyła tekst do Hugging Face i analizuje odpowiedź
+function analyzeText(inputText, sendResponse) {
   const HF_API_TOKEN = "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";
-  const endpoint =
-    "https://api-inference.huggingface.co/models/jy46604790/Fake-News-Bert-Detect";
+  const model = "jy46604790/Fake-News-Bert-Detect";
+  const endpoint = `https://api-inference.huggingface.co/models/${model}`;
 
-  const payload = {
-    inputs: text,
-  };
-
-  try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${HF_API_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const raw = await response.text(); // pokażmy wszystko jako string
-    console.log("🧪 Status:", response.status);
-    console.log("🧪 Body wysłane:", payload);
-    console.log("🧪 Odpowiedź (surowa):", raw);
-
-    if (!response.ok) {
-      throw new Error(`Błąd API: ${response.status} ${response.statusText}`);
-    }
-
-    const json = JSON.parse(raw);
-    console.log("✅ Parsed JSON:", json);
-  } catch (err) {
-    console.error("❌ Błąd HF API:", err);
+  // 🧹 Czy tekst w ogóle istnieje?
+  if (!inputText || !inputText.trim()) {
+    sendResponse({ score: 0, verdict: "NO TEXT FOUND" });
+    return;
   }
-}
 
-// Test
-debugHFTest(
-  "Premier Donald Tusk ogłasza mobilizację 200 000 mężczyzn od 1 lipca."
-);
+  // 🔪 Ogranicz tekst do 500 słów
+  inputText = inputText.split(/\s+/).slice(0, 500).join(" ");
+
+  fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${HF_API_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ inputs: inputText }),
+  })
+    .then(async (res) => {
+      const text = await res.text();
+      console.log("📥 Surowy response:", text);
+
+      try {
+        const json = JSON.parse(text);
+
+        // ❗ Obsługa błędu API
+        if (json.error) {
+          console.error("❌ API ERROR:", json.error);
+          sendResponse({ score: 0, verdict: "API ERROR: " + json.error });
+          return;
+        }
+
+        // ✅ Format: [{label: "...", score: 0.x}]
+        if (
+          !Array.isArray(json) ||
+          !Array.isArray(json[0]) ||
+          typeof json[0][0]?.label !== "string"
+        ) {
+          console.warn("⚠️ Zły format JSON:", json);
+          sendResponse({ score: 0, verdict: "INVALID API FORMAT" });
+          return;
+        }
+
+        const result = json[0][0]; // ← pierwszy, najbardziej prawdopodobny wynik
+        const score = result.score || 0;
+        const label = result.label;
+
+        // 🎯 Ocena
+        let verdict = "UNKNOWN";
+
+        if (label === "LABEL_0") {
+          verdict =
+            score >= 0.9 ? "FAKE" : score >= 0.6 ? "POSSIBLE FAKE" : "REAL";
+        } else if (label === "LABEL_1") {
+          verdict = "REAL";
+        }
+
+        sendResponse({ score: Math.round(score * 100), verdict });
+      } catch (err) {
+        console.error("❌ Błąd parsowania JSON:", err);
+        sendResponse({ score: 0, verdict: "API PARSE ERROR" });
+      }
+    })
+    .catch((err) => {
+      console.error("❌ Fetch/API ERROR:", err);
+      sendResponse({ score: 0, verdict: "API ERROR" });
+    });
+}
