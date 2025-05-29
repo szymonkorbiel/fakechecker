@@ -19,7 +19,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-const HF_API_TOKEN = "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";
+const HF_API_TOKEN = "xxx";
 const endpoints = {
   en: "https://api-inference.huggingface.co/models/jy46604790/Fake-News-Bert-Detect",
   // pl: "https://api-inference.huggingface.co/models/dkleczek/polish-fake-news-model",
