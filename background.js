@@ -3,13 +3,13 @@ console.log("🧠 Service worker startuje!");
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "analyzeText") {
     console.log("🧠 Analiza tekstu:", request.text);
-    analyzeText(request.text, sendResponse);
-    return true;
+    analyzeText(request.text, request.url, sendResponse);
+    return true; // Keep the message channel open for async response
   }
 
   if (request.action === "analyzeExtractedTexts") {
     console.log("📦 Batch analiza tekstów...");
-    batchAnalyze(request.texts).then((results) => {
+    batchAnalyze(request.texts, request.url).then((results) => {
       chrome.tabs.sendMessage(sender.tab.id, {
         action: "highlightFakeNews",
         results,
@@ -22,23 +22,29 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 const HF_API_TOKEN = "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";
 const endpoints = {
   en: "https://api-inference.huggingface.co/models/jy46604790/Fake-News-Bert-Detect",
-  pl: "https://api-inference.huggingface.co/models/dkleczek/polish-fake-news-model",
+  // pl: "https://api-inference.huggingface.co/models/dkleczek/polish-fake-news-model",
 };
 
-function analyzeText(inputText, sendResponse) {
+const labelMap = {
+  LABEL_0: "FAKE",
+  LABEL_1: "REAL",
+};
+
+function analyzeText(inputText, url, sendResponse) {
   if (!inputText || !inputText.trim()) {
     sendResponse({ score: 0, verdict: "NO TEXT FOUND" });
     return;
   }
 
-  // Normalizacja i oczyszczenie
   inputText = inputText.normalize("NFC").replace(/\s+/g, " ").trim();
-
-  // Przycinanie na podstawie pełnych zdań (max ~6 zdań)
   const sentences = inputText.match(/[^.!?]+[.!?]+/g) || [];
-  inputText = sentences.slice(0, 6).join(" ").trim();
+  const trimmed = sentences.slice(0, 10).join(" ").trim();
 
-  console.log("📄 Tekst po skróceniu:", inputText);
+  const hostname = url ? new URL(url).hostname : "unknown source";
+  const sourcePrefix = `[SOURCE: ${hostname}] `;
+  inputText = sourcePrefix + trimmed;
+
+  console.log("📄 Tekst po przygotowaniu:", inputText);
 
   const lang = detectLanguage(inputText);
   console.log("🧠 Wykryty język:", lang);
@@ -69,16 +75,28 @@ function analyzeText(inputText, sendResponse) {
 
         const score = result.score || 0;
         const label = result.label;
+        let verdict = labelMap[label] || "UNKNOWN";
 
-        let verdict = "UNKNOWN";
         if (label === "LABEL_0") {
-          verdict =
-            score >= 0.9 ? "FAKE" : score >= 0.6 ? "POSSIBLE FAKE" : "REAL";
-        } else if (label === "LABEL_1") {
-          verdict = "REAL";
+          if (score >= 0.9) verdict = "FAKE";
+          else if (score >= 0.6) verdict = "POSSIBLE FAKE";
+          else verdict = "REAL";
         }
 
-        sendResponse({ score: Math.round(score * 100), verdict, lang });
+        // Ochrona zaufanych źródeł
+        chrome.storage.sync.get({ trustedSources: [] }, (data) => {
+          const trusted = data.trustedSources;
+          const isTrusted = trusted.some((domain) => hostname.includes(domain));
+
+          if (
+            isTrusted &&
+            (verdict === "FAKE" || verdict === "POSSIBLE FAKE")
+          ) {
+            verdict = "REAL (TRUSTED SOURCE)";
+          }
+
+          sendResponse({ score: Math.round(score * 100), verdict, lang });
+        });
       } catch (err) {
         console.error("❌ Błąd parsowania JSON:", err);
         sendResponse({ score: 0, verdict: "API PARSE ERROR" });
@@ -90,20 +108,22 @@ function analyzeText(inputText, sendResponse) {
     });
 }
 
-async function batchAnalyze(texts) {
+async function batchAnalyze(texts, url) {
   const results = [];
+  const hostname = url ? new URL(url).hostname : "unknown source";
+  const sourcePrefix = `[SOURCE: ${hostname}] `;
 
   for (const text of texts) {
     try {
-      // Przygotowanie tekstu – podział na zdania i oczyszczenie
       const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
       const trimmed = sentences
-        .slice(0, 6)
+        .slice(0, 10)
         .join(" ")
         .replace(/\s+/g, " ")
         .trim();
+      const inputText = sourcePrefix + trimmed;
 
-      const lang = detectLanguage(trimmed);
+      const lang = detectLanguage(inputText);
       const endpoint = endpoints[lang] || endpoints.en;
 
       const res = await fetch(endpoint, {
@@ -112,24 +132,42 @@ async function batchAnalyze(texts) {
           Authorization: `Bearer ${HF_API_TOKEN}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ inputs: trimmed }),
+        body: JSON.stringify({ inputs: inputText }),
       });
 
       const json = await res.json();
       const result = json?.[0]?.[0] || json?.[0];
 
-      if (result && result.label) {
-        results.push({
-          label: result.label,
-          score: result.score,
-          lang,
-        });
-      } else {
-        results.push({ label: "ERROR", score: 0, lang });
+      let label = result?.label || "ERROR";
+      let score = result?.score || 0;
+      let verdict = labelMap[label] || "UNKNOWN";
+
+      if (label === "LABEL_0") {
+        if (score >= 0.9) verdict = "FAKE";
+        else if (score >= 0.6) verdict = "POSSIBLE FAKE";
+        else verdict = "REAL";
       }
+
+      const trusted = await new Promise((resolve) => {
+        chrome.storage.sync.get({ trustedSources: [] }, (data) =>
+          resolve(data.trustedSources)
+        );
+      });
+      const isTrusted = trusted.some((domain) => hostname.includes(domain));
+
+      if (isTrusted && (verdict === "FAKE" || verdict === "POSSIBLE FAKE")) {
+        verdict = "REAL (TRUSTED SOURCE)";
+      }
+
+      results.push({ label, score, verdict, lang });
     } catch (err) {
       console.error("❌ Batch error:", err);
-      results.push({ label: "ERROR", score: 0, lang });
+      results.push({
+        label: "ERROR",
+        score: 0,
+        verdict: "ERROR",
+        lang: "unknown",
+      });
     }
   }
 
@@ -137,6 +175,7 @@ async function batchAnalyze(texts) {
 }
 
 function detectLanguage(text) {
-  const polishChars = /[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/;
-  return polishChars.test(text) ? "pl" : "en";
+  return "en"; // Placeholder, implement language detection if needed
+  // const polishChars = /[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/;
+  // return polishChars.test(text) ? "pl" : "en";
 }

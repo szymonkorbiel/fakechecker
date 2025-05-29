@@ -1,6 +1,18 @@
 document.addEventListener("DOMContentLoaded", () => {
   const scanButton = document.getElementById("scanButton");
   const resultElement = document.getElementById("result");
+  const selectionButton = document.getElementById("analyzeSelection");
+
+  if (selectionButton) {
+    selectionButton.addEventListener("click", () => {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        chrome.scripting.executeScript({
+          target: { tabId: tabs[0].id },
+          files: ["content.js"],
+        });
+      });
+    });
+  }
 
   if (!scanButton || !resultElement) {
     console.error("Brakuje elementów #scanButton lub #result w DOM.");
@@ -19,32 +31,26 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         const formData = new FormData();
         formData.append("base64Image", dataUrl);
-        formData.append("language", "eng"); // Możesz tu dać "pol" jeśli większość tekstów jest po polsku
+        formData.append("language", "eng");
         formData.append("isOverlayRequired", "false");
 
         const response = await fetch("https://api.ocr.space/parse/image", {
           method: "POST",
-          headers: {
-            apikey: "helloworld",
-          },
+          headers: { apikey: "K89900029588957" },
           body: formData,
         });
 
         const result = await response.json();
         const text = result?.ParsedResults?.[0]?.ParsedText || "";
 
-        console.log("📥 OCR wynik:", JSON.stringify(text));
-
-        // Sprawdź, czy są jakiekolwiek litery
         const cleanText = text.replace(/\s+/g, " ").trim();
-        const containsLetters = /[a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/.test(cleanText);
+        const containsLetters = /[a-zA-Ząćęłńóśźżź]/.test(cleanText);
 
         if (!containsLetters || cleanText.length < 10) {
           showError("Nie znaleziono czytelnego tekstu");
           return;
         }
 
-        // Pokaż tymczasowy komunikat, że analiza trwa
         resultElement.innerText = "📤 Przesyłanie do analizy...";
 
         chrome.runtime.sendMessage(
@@ -69,4 +75,9 @@ document.addEventListener("DOMContentLoaded", () => {
   function showError(msg) {
     resultElement.innerText = "❌ " + msg;
   }
+
+  // Możesz usunąć ten fragment z automatycznym skanowaniem przy otwarciu popupu, jeśli nie jest potrzebny:
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    chrome.tabs.sendMessage(tabs[0].id, { action: "triggerScan" });
+  });
 });

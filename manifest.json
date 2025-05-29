@@ -1,23 +1,19 @@
 {
   "manifest_version": 3,
-  "name": "Fake News OCR Checker",
+  "name": "Fake News Scanner",
   "version": "1.0",
-  "permissions": ["tabs", "activeTab", "scripting"],
-  "host_permissions": [
-    "https://api-inference.huggingface.co/*",
-    "https://api.ocr.space/*"
-  ],
-  "background": {
-    "service_worker": "background.js",
-    "type": "module"
-  },
+  "permissions": ["scripting", "tabs", "activeTab", "storage"],
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_title": "FakeChecker"
+  },
+  "background": {
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["contentScript.js"],
+      "js": ["contentscript.js"],
       "run_at": "document_idle"
     }
   ]

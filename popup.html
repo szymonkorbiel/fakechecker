@@ -1,36 +1,52 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta charset="UTF-8" />
     <style>
       body {
         font-family: Arial, sans-serif;
+        width: 300px;
         padding: 10px;
-        width: 250px;
       }
       button {
+        margin: 4px 0;
+        padding: 6px 10px;
+      }
+      input {
         width: 100%;
-        padding: 10px;
-        font-size: 16px;
-        background-color: #007bff;
-        color: white;
+        padding: 5px;
+        margin-top: 6px;
+      }
+      #trustedList {
+        margin-top: 10px;
+        font-size: 14px;
+      }
+      .domain-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 2px 0;
+      }
+      .remove-btn {
+        background: transparent;
         border: none;
-        border-radius: 5px;
-        cursor: pointer;
-      }
-      button:hover {
-        background-color: #0056b3;
-      }
-      #result {
-        margin-top: 15px;
+        color: red;
         font-weight: bold;
+        cursor: pointer;
       }
     </style>
   </head>
   <body>
-    <button id="scanButton">Skanuj tekst</button>
-    <div id="result"></div>
+    <h3>🧠 Fake News Scanner</h3>
 
-    <!-- TEN ZAPIS JEST KLUCZOWY!!! -->
-    <script type="module" src="popup.js" defer></script>
+    <button id="scanButton">🔍 Przeskanuj stronę</button>
+    <button id="analyzeSelection">✂️ Analizuj zaznaczenie</button>
+    <div id="result" style="margin-top: 10px"></div>
+
+    <hr />
+    <h4>Zaufane źródła</h4>
+    <input type="text" id="domainInput" placeholder="np. bbc.com" />
+    <button id="addDomain">➕ Dodaj</button>
+    <div id="trustedList"></div>
   </body>
 </html>
