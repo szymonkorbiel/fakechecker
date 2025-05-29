@@ -8,6 +8,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   scanButton.addEventListener("click", async () => {
+    resultElement.innerText = "⏳ Skanowanie i analiza tekstu...";
+
     chrome.tabs.captureVisibleTab(null, { format: "png" }, async (dataUrl) => {
       if (!dataUrl) {
         showError("Błąd robienia screena");
@@ -17,13 +19,13 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         const formData = new FormData();
         formData.append("base64Image", dataUrl);
-        formData.append("language", "eng");
+        formData.append("language", "eng"); // Możesz tu dać "pol" jeśli większość tekstów jest po polsku
         formData.append("isOverlayRequired", "false");
 
         const response = await fetch("https://api.ocr.space/parse/image", {
           method: "POST",
           headers: {
-            apikey: "helloworld", // ← darmowy testowy klucz OCR.Space
+            apikey: "helloworld",
           },
           body: formData,
         });
@@ -31,26 +33,35 @@ document.addEventListener("DOMContentLoaded", () => {
         const result = await response.json();
         const text = result?.ParsedResults?.[0]?.ParsedText || "";
 
-        if (!text.trim()) {
-          showError("Nie znaleziono tekstu");
+        console.log("📥 OCR wynik:", JSON.stringify(text));
+
+        // Sprawdź, czy są jakiekolwiek litery
+        const cleanText = text.replace(/\s+/g, " ").trim();
+        const containsLetters = /[a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/.test(cleanText);
+
+        if (!containsLetters || cleanText.length < 10) {
+          showError("Nie znaleziono czytelnego tekstu");
           return;
         }
 
+        // Pokaż tymczasowy komunikat, że analiza trwa
+        resultElement.innerText = "📤 Przesyłanie do analizy...";
+
         chrome.runtime.sendMessage(
-          { action: "analyzeText", text },
+          { action: "analyzeText", text: cleanText },
           (response) => {
             if (!response) {
               showError("Błąd w analizie");
               return;
             }
 
-            const { score, verdict } = response;
-            resultElement.innerText = `🧠 Wynik: ${verdict} (${score}%)`;
+            resultElement.innerText =
+              "✅ Analiza zakończona. Sprawdź oznaczenia na stronie.";
           }
         );
       } catch (err) {
         console.error("❌ Błąd OCR:", err);
-        showError("OCR error");
+        showError("Błąd podczas OCR");
       }
     });
   });
