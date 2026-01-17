@@ -3,50 +3,195 @@
   <head>
     <meta charset="UTF-8" />
     <style>
-      body {
-        font-family: Arial, sans-serif;
-        width: 300px;
-        padding: 10px;
+      :root {
+        --bg: #0f1720;
+        --card: #0b1220;
+        --muted: #9aa5b1;
+        --accent: #5eead4;
+        --danger: #ff7b7b;
       }
-      button {
-        margin: 4px 0;
-        padding: 6px 10px;
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial;
+      }
+      body {
+        width: 340px;
+        background: linear-gradient(180deg, #071021 0%, #071827 100%);
+        color: #e6eef6;
+        padding: 14px;
+      }
+      .popup {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .title {
+        font-weight: 700;
+        font-size: 16px;
+      }
+      .version {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .controls {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .btn {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        color: var(--accent);
+        padding: 8px 10px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .btn.small {
+        padding: 6px 8px;
+        font-size: 13px;
+      }
+      .btn.primary {
+        background: linear-gradient(90deg, #06b6d4, #7c3aed);
+        color: #061024;
+        border: none;
+      }
+      .result-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        padding: 10px;
+        border-radius: 10px;
+        min-height: 56px;
+        display: flex;
+        align-items: center;
+      }
+      .placeholder {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .trusted h4 {
+        margin: 8px 0 6px 0;
+        font-size: 13px;
+      }
+      .add-row {
+        display: flex;
+        gap: 8px;
       }
       input {
-        width: 100%;
-        padding: 5px;
-        margin-top: 6px;
+        flex: 1;
+        padding: 8px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        background: transparent;
+        color: inherit;
       }
-      #trustedList {
-        margin-top: 10px;
-        font-size: 14px;
+      .trusted-list {
+        margin-top: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        max-height: 120px;
+        overflow: auto;
       }
       .domain-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 2px 0;
+        background: rgba(255, 255, 255, 0.02);
+        padding: 6px 8px;
+        border-radius: 8px;
+      }
+      .domain-item .domain {
+        color: #cfeff6;
       }
       .remove-btn {
         background: transparent;
         border: none;
-        color: red;
-        font-weight: bold;
+        color: var(--danger);
         cursor: pointer;
+        font-weight: 700;
+      }
+      .footer {
+        font-size: 11px;
+        color: var(--muted);
+        text-align: center;
+        padding-top: 6px;
+      }
+      .spinner {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 3px solid rgba(255, 255, 255, 0.06);
+        border-top-color: var(--accent);
+        animation: spin 1s linear infinite;
+      }
+      .model-select {
+        background: rgba(0, 0, 0, 0.45);
+        color: #e6eef6;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        padding: 6px 8px;
+        border-radius: 8px;
+        appearance: none;
+      }
+      .model-label {
+        color: var(--muted);
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
       }
     </style>
   </head>
   <body>
-    <h3>🧠 Fake News Scanner</h3>
+    <div class="popup">
+      <header class="header">
+        <div class="title">🧠 Fake News Scanner</div>
+        <div class="version">v1.0</div>
+      </header>
 
-    <button id="scanButton">🔍 Przeskanuj stronę</button>
-    <button id="analyzeSelection">✂️ Analizuj zaznaczenie</button>
-    <div id="result" style="margin-top: 10px"></div>
+      <main>
+        <div class="controls">
+          <button id="scanButton" class="btn primary">
+            🔍 Przeskanuj stronę
+          </button>
+          <button id="analyzeSelection" class="btn">
+            ✂️ Analizuj zaznaczenie
+          </button>
+        </div>
 
-    <hr />
-    <h4>Zaufane źródła</h4>
-    <input type="text" id="domainInput" placeholder="np. bbc.com" />
-    <button id="addDomain">➕ Dodaj</button>
-    <div id="trustedList"></div>
+        <div class="model-row">
+          <div id="modelLabel" class="model-label">Model AI:</div>
+          <select id="modelSelect" class="model-select">
+            <option value="jybert">BERT (Model 1)</option>
+            <option value="roberta">RoBERTa (Model 2)</option>
+            <option value="yato">DistilBERT (Model 3)</option>
+          </select>
+        </div>
+
+        <section class="trusted">
+          <h4>Zaufane źródła</h4>
+          <div class="add-row">
+            <input type="text" id="domainInput" placeholder="np. bbc.com" />
+            <button id="addDomain" class="btn small">➕</button>
+          </div>
+          <div id="trustedList" class="trusted-list"></div>
+        </section>
+      </main>
+
+      <footer class="footer"></footer>
+    </div>
   </body>
 </html>

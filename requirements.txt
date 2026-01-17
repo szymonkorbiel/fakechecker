@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+transformers
+torch
+sentencepiece
+numpy<2.0

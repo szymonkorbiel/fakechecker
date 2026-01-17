@@ -3,6 +3,9 @@
   "name": "Fake News Scanner",
   "version": "1.0",
   "permissions": ["scripting", "tabs", "activeTab", "storage"],
+  "host_permissions": [
+    "http://localhost:8000/*"
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_title": "FakeChecker"

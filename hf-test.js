@@ -1,6 +1,6 @@
 const API_URL =
   "https://api-inference.huggingface.co/models/jy46604790/Fake-News-Bert-Detect";
-const API_TOKEN = "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"; // Wstaw swój token tutaj
+const API_TOKEN = "TWÓJ_TOKEN_HF";
 
 async function analyzeFakeNews(text) {
   const response = await fetch(API_URL, {
@@ -18,12 +18,9 @@ async function analyzeFakeNews(text) {
   }
 
   const result = await response.json();
-  // Przykładowa odpowiedź:
-  // [ { label: "REAL", score: 0.99 }, { label: "FAKE", score: 0.01 } ]
   return result;
 }
 
-// Przykład użycia:
 analyzeFakeNews(
   "Premier Donald Tusk ogłasza mobilizację 200 000 mężczyzn od 1 lipca."
 )

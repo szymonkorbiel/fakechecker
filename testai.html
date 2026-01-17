@@ -36,7 +36,7 @@
         },
       ];
 
-      const apiKey = "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"; // <-- Wstaw swój klucz HF tutaj
+      const apiKey = "TWÓJ_TOKEN_HF";
       const endpoint =
         "https://api-inference.huggingface.co/models/jy46604790/Fake-News-Bert-Detect";
 
@@ -78,10 +78,7 @@
         for (const sample of fakeNewsSamples) {
           try {
             const result = await analyzeText(sample.text);
-
             const expectedLabel = sample.expectedFake ? "FAKE" : "OK";
-
-            // PASSED jeżeli zgodność albo AI niepewne
             const passed =
               result.label === expectedLabel || result.label === "NIEPEWNE";
 
